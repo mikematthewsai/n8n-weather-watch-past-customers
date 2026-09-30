@@ -1,0 +1,8 @@
+{
+  "name": "n8n-weather-watch-past-customers-tests",
+  "private": true,
+  "description": "Checks for the workflow. Run: npm install && node *.test.js",
+  "dependencies": {
+    "luxon": "^3.5.0"
+  }
+}
