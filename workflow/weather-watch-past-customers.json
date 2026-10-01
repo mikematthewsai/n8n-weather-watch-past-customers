@@ -17,8 +17,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        200,
-        420
+        700,
+        400
       ]
     },
     {
@@ -35,13 +35,13 @@
               "id": "ef11a7dd-81c5-52a2-ac75-6d2a78acd498",
               "name": "business_number",
               "type": "string",
-              "value": "+15555550100"
+              "value": ""
             },
             {
               "id": "fb1312fe-3c27-52a0-9eb6-c78a5c4bb154",
               "name": "owner_cell",
               "type": "string",
-              "value": "+15555550199"
+              "value": ""
             },
             {
               "id": "6ac4237f-2d3e-5a32-b297-a82560d5ac71",
@@ -53,7 +53,7 @@
               "id": "d824fa77-7010-5bea-92d3-2c483e3fdf50",
               "name": "contact_email",
               "type": "string",
-              "value": "you@example.com"
+              "value": ""
             },
             {
               "id": "52bb13e2-b7ac-555d-a6a3-6166ce52ce1c",
@@ -166,8 +166,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        420,
-        420
+        920,
+        400
       ]
     },
     {
@@ -178,7 +178,7 @@
               "id": "46eeac98-2fad-5aa7-9eb8-2ae930b08de6",
               "name": "customers",
               "type": "string",
-              "value": "# name | phone | email | address | ok to text (yes/no)\nSample Customer One | +15555550101 | one@example.com | 100 Main St, Springfield, IL 62701 | yes\nSample Customer Two | +15555550102 | | 200 Main St, Springfield, IL 62701 | no"
+              "value": "# One customer per line: name | phone | email | address | ok to text (yes or no)"
             }
           ]
         },
@@ -189,21 +189,21 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        640,
-        420
+        1140,
+        400
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Reads Your settings and Your customers, checks them, and works out which addresses still need to\n// be located. Each address is looked up once and remembered in workflow static data, which n8n keeps\n// only while the workflow is published.\nconst s = $('Your settings').first().json;\nconst st = $getWorkflowStaticData('global');\nst.geo = st.geo || {};\n\nconst phone = v => {\n  const raw = String(v || '').trim();\n  const digits = raw.replace(/\\D/g, '');\n  if (!digits) return '';\n  if (raw.startsWith('+') && digits.length >= 8 && digits.length <= 15) return '+' + digits;\n  if (digits.length === 10) return '+1' + digits;\n  if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;\n  return 'bad';\n};\nconst num = (v, d) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? d : Number(v);\nconst bool = (v, d) => {\n  if (v === undefined || v === null || v === '') return d;\n  return !['false', 'no', 'off', '0'].includes(String(v).trim().toLowerCase());\n};\nconst hhmm = (v, d) => /^([01]?\\d|2[0-3]):[0-5]\\d$/.test(String(v || '').trim()) ? String(v).trim() : d;\nconst addrKey = a => String(a || '').toLowerCase().replace(/[.,#]/g, ' ').replace(/\\s+/g, ' ').trim();\n\nconst business_number = phone(s.business_number);\nconst owner_cell = phone(s.owner_cell);\nif (!business_number || !owner_cell || business_number === 'bad' || owner_cell === 'bad') {\n  throw new Error('Your settings: business_number and owner_cell must both be phone numbers, like +15551234567.');\n}\nif (['+15555550100', '+15555550199'].includes(business_number) || ['+15555550100', '+15555550199'].includes(owner_cell)) {\n  throw new Error('Your settings: replace the example phone numbers with your Twilio number and your cell before you publish this.');\n}\nconst timezone = String(s.timezone || 'America/New_York').trim();\nif (!DateTime.now().setZone(timezone).isValid) {\n  throw new Error('Your settings: \"' + timezone + '\" is not a time zone n8n knows. Use a name like America/New_York.');\n}\nconst replay = String(s.replay_spc_day || '').trim();\nif (replay && !/^\\d{6}$/.test(replay)) {\n  throw new Error('Your settings: replay_spc_day must be blank, or a past storm day written YYMMDD, like 250519.');\n}\nconst outreach_url = String(s.outreach_url || '').trim();\nif (outreach_url && !/^https?:\\/\\/\\S+$/.test(outreach_url)) {\n  throw new Error('Your settings: outreach_url must be blank, or the full address of the outreach workflow\\'s request webhook.');\n}\nconst DEFAULT_WARNINGS = 'Hard Freeze Warning, Freeze Warning, Extreme Cold Warning, Extreme Heat Warning, Excessive Heat Warning, High Wind Warning, Flash Flood Warning, Flood Warning, Ice Storm Warning, Winter Storm Warning, Hurricane Warning, Tropical Storm Warning';\nconst warnings = String(s.warnings === undefined ? DEFAULT_WARNINGS : s.warnings)\n  .split(/[,\\n]+/).map(x => x.trim()).filter(Boolean);\n\nconst cfg = {\n  business_name: String(s.business_name || 'your business').trim(),\n  business_number, owner_cell, timezone,\n  contact_email: String(s.contact_email || '').trim(),\n  radius_miles: Math.min(50, Math.max(0.25, num(s.radius_miles, 3))),\n  watch_hail: bool(s.watch_hail, true),\n  hail_min_inches: Math.max(0.25, num(s.hail_min_inches, 1)),\n  watch_wind: bool(s.watch_wind, true),\n  wind_min_mph: Math.max(0, num(s.wind_min_mph, 58)),\n  wind_damage_reports: bool(s.wind_damage_reports, true),\n  warnings,\n  warnings_lower: warnings.map(w => w.toLowerCase()),\n  quiet_start: hhmm(s.quiet_start, '21:00'),\n  quiet_end: hhmm(s.quiet_end, '07:00'),\n  max_names: Math.max(1, Math.min(30, num(s.max_names, 8))),\n  lookups_per_run: Math.max(1, Math.min(100, num(s.lookups_per_run, 25))),\n  outreach_url,\n  outreach_key: String(s.outreach_key || '').trim(),\n  hail_message: String(s.hail_message || '').trim(),\n  wind_message: String(s.wind_message || '').trim(),\n  warning_message: String(s.warning_message || '').trim(),\n  replay,\n};\ncfg.user_agent = '(' + cfg.business_name.replace(/[()]/g, '') + ' weather watch, ' + (cfg.contact_email || 'n8n template') + ')';\nif (cfg.outreach_url && !cfg.outreach_key) {\n  throw new Error('Your settings: outreach_url is set, so outreach_key must match the request_key in the outreach workflow.');\n}\n\n// Your customers: either one field called customers with one line each\n//   name | phone | email | address | ok to text (yes/no)\n// or rows from a sheet or database with columns name, phone, email, address, ok_to_text (lat and lon optional).\nconst src = $('Your customers').all().map(i => i.json);\nlet rows = [];\nconst problems = [];\nif (src.length === 1 && typeof src[0].customers === 'string') {\n  src[0].customers.split(/\\r?\\n/).forEach((line, n) => {\n    const t = line.trim();\n    if (!t || t.startsWith('#')) return;\n    const p = t.split('|').map(x => x.trim());\n    if (p.length < 4) { problems.push('Line ' + (n + 1) + ' needs name | phone | email | address: \"' + t.slice(0, 60) + '\"'); return; }\n    rows.push({ name: p[0], phone: p[1], email: p[2], address: p[3], ok_to_text: p[4] });\n  });\n} else {\n  rows = src;\n}\n\nconst customers = [];\nconst seen = {};\nfor (const r of rows) {\n  const name = String(r.name || '').trim();\n  const address = String(r.address || '').trim();\n  if (!address) { if (name) problems.push(name + ' has no address, so it cannot be matched to the weather.'); continue; }\n  const key = addrKey(address);\n  const ph = phone(r.phone);\n  if (ph === 'bad') problems.push(name + ': \"' + r.phone + '\" is not a phone number, so they can be matched but not texted.');\n  const lat = r.lat === '' || r.lat === undefined ? NaN : Number(r.lat);\n  const lon = r.lon === '' || r.lon === undefined ? NaN : Number(r.lon);\n  const c = {\n    key, name: name || address, address,\n    phone: ph === 'bad' ? '' : ph,\n    email: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(r.email || '').trim()) ? String(r.email).trim() : '',\n    ok_to_text: bool(r.ok_to_text, false),\n    given: isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null,\n  };\n  if (seen[key + '|' + c.phone]) continue;\n  seen[key + '|' + c.phone] = true;\n  customers.push(c);\n}\nif (!customers.length) {\n  throw new Error('Your customers: no customers with an address were found. Add one line per customer: name | phone | email | address | ok to text.');\n}\n\n// Addresses not looked up yet. A given lat/lon still needs its weather zone looked up once.\nconst need = [];\nconst queued = {};\nfor (const c of customers) {\n  const g = st.geo[c.key];\n  if (g && (g.found || g.tries >= 1)) continue;\n  if (queued[c.key]) continue;\n  queued[c.key] = true;\n  need.push({ key: c.key, address: c.address, given: c.given });\n  if (need.length >= cfg.lookups_per_run) break;\n}\n\nreturn [{ json: { cfg, customers, need, problems } }];\n"
+        "jsCode": "// Reads Your settings and Your customers, checks them, and works out which addresses still need to\n// be located. Each address is looked up once and remembered in workflow static data, which n8n keeps\n// only while the workflow is published.\nconst s = $('Your settings').first().json;\nconst st = $getWorkflowStaticData('global');\nst.geo = st.geo || {};\n\nconst phone = v => {\n  const raw = String(v || '').trim();\n  const digits = raw.replace(/\\D/g, '');\n  if (!digits) return '';\n  if (raw.startsWith('+') && digits.length >= 8 && digits.length <= 15) return '+' + digits;\n  if (digits.length === 10) return '+1' + digits;\n  if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;\n  return 'bad';\n};\nconst num = (v, d) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? d : Number(v);\nconst bool = (v, d) => {\n  if (v === undefined || v === null || v === '') return d;\n  return !['false', 'no', 'off', '0'].includes(String(v).trim().toLowerCase());\n};\nconst hhmm = (v, d) => /^([01]?\\d|2[0-3]):[0-5]\\d$/.test(String(v || '').trim()) ? String(v).trim() : d;\nconst addrKey = a => String(a || '').toLowerCase().replace(/[.,#]/g, ' ').replace(/\\s+/g, ' ').trim();\n\nconst business_number = phone(s.business_number);\nconst owner_cell = phone(s.owner_cell);\nif (!business_number || !owner_cell || business_number === 'bad' || owner_cell === 'bad') {\n  throw new Error('Your settings: business_number and owner_cell must both be filled in with full phone numbers: a plus sign, the country code, then the number.');\n}\nconst timezone = String(s.timezone || 'America/New_York').trim();\nif (!DateTime.now().setZone(timezone).isValid) {\n  throw new Error('Your settings: \"' + timezone + '\" is not a time zone n8n knows. Use a name like America/New_York.');\n}\nconst replay = String(s.replay_spc_day || '').trim();\nif (replay && !/^\\d{6}$/.test(replay)) {\n  throw new Error('Your settings: replay_spc_day must be blank, or a past storm day written YYMMDD, like 250519.');\n}\nconst outreach_url = String(s.outreach_url || '').trim();\nif (outreach_url && !/^https?:\\/\\/\\S+$/.test(outreach_url)) {\n  throw new Error('Your settings: outreach_url must be blank, or the full address of the outreach workflow\\'s request webhook.');\n}\nconst DEFAULT_WARNINGS = 'Hard Freeze Warning, Freeze Warning, Extreme Cold Warning, Extreme Heat Warning, Excessive Heat Warning, High Wind Warning, Flash Flood Warning, Flood Warning, Ice Storm Warning, Winter Storm Warning, Hurricane Warning, Tropical Storm Warning';\nconst warnings = String(s.warnings === undefined ? DEFAULT_WARNINGS : s.warnings)\n  .split(/[,\\n]+/).map(x => x.trim()).filter(Boolean);\n\nconst cfg = {\n  business_name: String(s.business_name || 'your business').trim(),\n  business_number, owner_cell, timezone,\n  contact_email: String(s.contact_email || '').trim(),\n  radius_miles: Math.min(50, Math.max(0.25, num(s.radius_miles, 3))),\n  watch_hail: bool(s.watch_hail, true),\n  hail_min_inches: Math.max(0.25, num(s.hail_min_inches, 1)),\n  watch_wind: bool(s.watch_wind, true),\n  wind_min_mph: Math.max(0, num(s.wind_min_mph, 58)),\n  wind_damage_reports: bool(s.wind_damage_reports, true),\n  warnings,\n  warnings_lower: warnings.map(w => w.toLowerCase()),\n  quiet_start: hhmm(s.quiet_start, '21:00'),\n  quiet_end: hhmm(s.quiet_end, '07:00'),\n  max_names: Math.max(1, Math.min(30, num(s.max_names, 8))),\n  lookups_per_run: Math.max(1, Math.min(100, num(s.lookups_per_run, 25))),\n  outreach_url,\n  outreach_key: String(s.outreach_key || '').trim(),\n  hail_message: String(s.hail_message || '').trim(),\n  wind_message: String(s.wind_message || '').trim(),\n  warning_message: String(s.warning_message || '').trim(),\n  replay,\n};\ncfg.user_agent = '(' + cfg.business_name.replace(/[()]/g, '') + ' weather watch, ' + (cfg.contact_email || 'n8n template') + ')';\nif (cfg.outreach_url && !cfg.outreach_key) {\n  throw new Error('Your settings: outreach_url is set, so outreach_key must match the request_key in the outreach workflow.');\n}\n\n// Your customers: either one field called customers with one line each\n//   name | phone | email | address | ok to text (yes/no)\n// or rows from a sheet or database with columns name, phone, email, address, ok_to_text (lat and lon optional).\nconst src = $('Your customers').all().map(i => i.json);\nlet rows = [];\nconst problems = [];\nif (src.length === 1 && typeof src[0].customers === 'string') {\n  src[0].customers.split(/\\r?\\n/).forEach((line, n) => {\n    const t = line.trim();\n    if (!t || t.startsWith('#')) return;\n    const p = t.split('|').map(x => x.trim());\n    if (p.length < 4) { problems.push('Line ' + (n + 1) + ' needs name | phone | email | address: \"' + t.slice(0, 60) + '\"'); return; }\n    rows.push({ name: p[0], phone: p[1], email: p[2], address: p[3], ok_to_text: p[4] });\n  });\n} else {\n  rows = src;\n}\n\nconst customers = [];\nconst seen = {};\nfor (const r of rows) {\n  const name = String(r.name || '').trim();\n  const address = String(r.address || '').trim();\n  if (!address) { if (name) problems.push(name + ' has no address, so it cannot be matched to the weather.'); continue; }\n  const key = addrKey(address);\n  const ph = phone(r.phone);\n  if (ph === 'bad') problems.push(name + ': \"' + r.phone + '\" is not a phone number, so they can be matched but not texted.');\n  const lat = r.lat === '' || r.lat === undefined ? NaN : Number(r.lat);\n  const lon = r.lon === '' || r.lon === undefined ? NaN : Number(r.lon);\n  const c = {\n    key, name: name || address, address,\n    phone: ph === 'bad' ? '' : ph,\n    email: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(r.email || '').trim()) ? String(r.email).trim() : '',\n    ok_to_text: bool(r.ok_to_text, false),\n    given: isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null,\n  };\n  if (seen[key + '|' + c.phone]) continue;\n  seen[key + '|' + c.phone] = true;\n  customers.push(c);\n}\nif (!customers.length) {\n  throw new Error('Your customers: no customers with an address were found. Add one line per customer: name | phone | email | address | ok to text.');\n}\n\n// Addresses not looked up yet. A given lat/lon still needs its weather zone looked up once.\nconst need = [];\nconst queued = {};\nfor (const c of customers) {\n  const g = st.geo[c.key];\n  if (g && (g.found || g.tries >= 1)) continue;\n  if (queued[c.key]) continue;\n  queued[c.key] = true;\n  need.push({ key: c.key, address: c.address, given: c.given });\n  if (need.length >= cfg.lookups_per_run) break;\n}\n\nreturn [{ json: { cfg, customers, need, problems } }];\n"
       },
       "id": "1c7e109d-978a-5afa-b8e6-2007b7645fa4",
       "name": "Read your settings and customers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        860,
-        420
+        1360,
+        400
       ]
     },
     {
@@ -237,8 +237,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1080,
-        420
+        1580,
+        400
       ]
     },
     {
@@ -250,8 +250,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        260
+        1900,
+        400
       ]
     },
     {
@@ -289,8 +289,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1520,
-        260
+        2120,
+        400
       ]
     },
     {
@@ -325,8 +325,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1740,
-        260
+        2340,
+        400
       ]
     },
     {
@@ -338,8 +338,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1960,
-        260
+        2560,
+        400
       ]
     },
     {
@@ -351,8 +351,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2180,
-        420
+        700,
+        900
       ]
     },
     {
@@ -383,8 +383,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2400,
-        420
+        920,
+        900
       ]
     },
     {
@@ -396,8 +396,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2620,
-        420
+        1140,
+        900
       ]
     },
     {
@@ -431,8 +431,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2840,
-        340
+        1460,
+        900
       ]
     },
     {
@@ -461,8 +461,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3060,
-        340
+        1680,
+        900
       ]
     },
     {
@@ -502,8 +502,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3280,
-        340
+        1900,
+        900
       ]
     },
     {
@@ -537,8 +537,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3500,
-        340
+        2120,
+        900
       ]
     },
     {
@@ -550,8 +550,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3720,
-        260
+        2340,
+        800
       ]
     },
     {
@@ -561,8 +561,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3720,
-        440
+        2340,
+        1000
       ]
     },
     {
@@ -596,8 +596,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2840,
-        640
+        1460,
+        1420
       ]
     },
     {
@@ -609,8 +609,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3060,
-        640
+        1680,
+        1420
       ]
     },
     {
@@ -634,8 +634,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3280,
-        640
+        1900,
+        1420
       ]
     },
     {
@@ -647,15 +647,15 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3500,
-        640
+        2120,
+        1420
       ]
     },
     {
       "parameters": {
-        "content": "## Weather watch: hail, wind and warnings matched to your past customers\n\n**Who it is for:** a service business whose work follows the weather. Roofers after hail, plumbers before a hard freeze, HVAC in a heat wave, tree services after high wind, water damage after floods.\n\n**What it does, every 30 minutes**\n1. Looks up each customer address once (free US Census geocoder) and its National Weather Service zone.\n2. Reads the NOAA Storm Prediction Center hail and wind reports for today and yesterday, and the active National Weather Service warnings for your customers' states. All free, no accounts.\n3. Finds every past customer within your radius of a hail or wind report above your size, or inside a warning you care about.\n4. Texts you who was hit, how close, and how big. Each customer is named once per storm day, and once per warning.\n\n**Setup**\n1. Add a Twilio credential and select it on **Find your Twilio account** and **Text you**.\n2. Fill in **Your settings**: your Twilio number, your cell, time zone and a contact email (the Weather Service asks for one).\n3. Put your customers in **Your customers**, one per line, or replace that node with a Google Sheets or database node that returns the same columns.\n4. Publish. The first check texts you what it is watching.\n\n**Want the customers texted too?** Import the companion outreach template, then set outreach_url and outreach_key here. Each group then goes to you for approval before anyone is texted.\n\nStorm reports are points where someone reported hail or wind, not full storm paths. Treat a match as a reason to check, not proof of damage.",
-        "height": 640,
-        "width": 1120,
+        "content": "## Weather watch: hail, wind and warnings matched to your past customers\nFor service businesses whose work follows the weather: roofers after hail, plumbers before a hard freeze, HVAC in a heat wave, tree services after high wind.\n\n### How it works\n1. Every 30 minutes it looks up any new customer address once with the free US Census geocoder, plus its National Weather Service zone and county.\n2. It reads today's and yesterday's NOAA Storm Prediction Center hail and wind reports, and the active Weather Service warnings for your customers' states. No accounts or keys.\n3. It finds every customer within your radius of a hail or wind report above your limits, or inside a warning on your list.\n4. It texts you their names, distance, size and time through Twilio. Each customer is named once per storm day and once per warning.\n5. Optional: with outreach_url set, each group goes to the companion outreach workflow, which asks for your approval before any customer is texted.\n\n### Setup steps\n1. Add a Twilio credential to **Find your Twilio account** and **Text you**.\n2. In **Your settings**, enter your Twilio number, your cell, your time zone and a contact email for the Weather Service.\n3. Add your customers to **Your customers**, one per line, or swap that node for a Google Sheets node with the same columns.\n4. Publish. The first check texts you what it is watching.\n\nStorm reports are points, not radar swaths: a match is a reason to check, not proof of damage.",
+        "height": 706,
+        "width": 640,
         "color": 1
       },
       "id": "72f0da4b-ced0-506f-8180-c9539bf7a720",
@@ -663,15 +663,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        140,
-        -420
+        -80,
+        200
       ]
     },
     {
       "parameters": {
-        "content": "### Trying it out\nSet **replay_spc_day** to a past storm day written YYMMDD (for example 250519, a big hail day in Texas) and put a customer near one of that day's reports. Run the workflow by hand. Replay skips warnings and does not remember who was named, so every run texts. Clear replay_spc_day before you publish.\n\nChanged a setting while it is published? Publish again, or the running version keeps the old settings.",
-        "height": 300,
-        "width": 880,
+        "content": "### Try it first\nSet replay_spc_day to a past storm day (YYMMDD, for example 250519), add a customer near one of its reports and run it by hand. Replay texts on every run. Clear it before publishing.",
+        "height": 200,
+        "width": 640,
         "color": 4
       },
       "id": "9e9e81c6-94f3-5c64-b2f3-5232a1d8fa48",
@@ -679,15 +679,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1280,
-        -120
+        -80,
+        946
       ]
     },
     {
       "parameters": {
-        "content": "### 1. Your settings and customers\nSettings are checked first. Customers can be pasted as lines or come from any node that returns name, phone, email, address and ok_to_text (lat and lon are optional). A line it cannot use is named in your next text.",
-        "height": 420,
-        "width": 1100,
+        "content": "### 1. Your settings and customers\nSettings are checked first. Customers can be pasted as lines or come from any node that returns name, phone, email, address and ok_to_text.",
+        "height": 360,
+        "width": 1140,
         "color": 7
       },
       "id": "e0b1f101-aee0-508a-9167-e293d40c267a",
@@ -695,15 +695,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        140,
-        240
+        620,
+        200
       ]
     },
     {
       "parameters": {
-        "content": "### 2. Find each address once\nNew addresses go to the US Census geocoder, then to the Weather Service for their forecast zone and county. Up to lookups_per_run per check, remembered after that. An address that cannot be found is named once so you can fix it.",
-        "height": 340,
-        "width": 880,
+        "content": "### 2. Find each address once\nNew addresses go to the US Census geocoder, then to the Weather Service for their zone and county. Each is remembered, and one that cannot be found is named once.",
+        "height": 360,
+        "width": 920,
         "color": 7
       },
       "id": "00e4dfe8-f63c-5685-b4d2-e789b99096ad",
@@ -711,14 +711,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1260,
-        120
+        1820,
+        200
       ]
     },
     {
       "parameters": {
-        "content": "### 3. Read the reports\nStorm day files from the Storm Prediction Center (a storm day runs noon to noon UTC) and active warnings for your customers' states. A source that fails 12 checks in a row is mentioned once, and again when it is back.",
-        "height": 420,
+        "content": "### 3. Read the reports and match\nStorm Prediction Center hail and wind files plus active warnings, matched to located customers by distance, zone and county.",
+        "height": 360,
         "width": 700,
         "color": 7
       },
@@ -727,15 +727,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2160,
-        240
+        620,
+        700
       ]
     },
     {
       "parameters": {
-        "content": "### 4. Text you\nOne text with every new match. Quiet hours hold it for the morning. If Twilio will not take it, it goes again with the next check, up to five tries.",
-        "height": 400,
-        "width": 1100,
+        "content": "### 4. Text you\nOne text with every new match. Quiet hours hold it for the morning. If Twilio refuses it, it goes again with the next check, up to five tries.",
+        "height": 560,
+        "width": 1140,
         "color": 7
       },
       "id": "9701c95a-37e8-5708-a895-bfb6a3f8c0eb",
@@ -743,15 +743,15 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2800,
-        140
+        1380,
+        600
       ]
     },
     {
       "parameters": {
-        "content": "### 5. Optional: hand off to the outreach workflow\nOnly when outreach_url is set. Each group of customers goes over with a ready message. If the outreach workflow does not answer ok, the summary is texted to you directly instead.",
-        "height": 260,
-        "width": 1100,
+        "content": "### 5. Optional handoff to outreach\nOnly when outreach_url is set. Each group goes over with a ready message. If the outreach workflow does not answer ok, the list is texted to you instead.",
+        "height": 360,
+        "width": 920,
         "color": 7
       },
       "id": "0120e226-dad0-5c60-ae82-5b2505d9b03d",
@@ -759,8 +759,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2800,
-        560
+        1380,
+        1220
       ]
     }
   ],
