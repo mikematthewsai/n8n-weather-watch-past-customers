@@ -54,17 +54,17 @@ Or replace that node with a Google Sheets, Airtable or database node that return
 3. Fill in **Your settings** and **Your customers**.
 4. Publish it. The first check texts you what it is watching.
 
-It will not run with the example phone numbers still in. The run stops in red in n8n and says why.
+It will not run until both phone numbers are filled in. The run stops in red in n8n and says why.
 
 ## Settings
 
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `business_name` | `Your Business` | Used in the texts |
-| `business_number` | `+15555550100` | Your Twilio number |
-| `owner_cell` | `+15555550199` | Where the texts go |
+| `business_number` | blank | Your Twilio number, with + and the country code |
+| `owner_cell` | blank | Where the texts go |
 | `timezone` | `America/New_York` | Times in the texts, and quiet hours |
-| `contact_email` | `you@example.com` | Sent to the Weather Service in the User-Agent, which it asks for |
+| `contact_email` | blank | Sent to the Weather Service in the User-Agent, which it asks for |
 | `radius_miles` | `3` | How close a storm report has to be to a customer |
 | `watch_hail`, `hail_min_inches` | `true`, `1` | Hail reports of this size or more |
 | `watch_wind`, `wind_min_mph` | `true`, `58` | Wind reports of this speed or more |
@@ -90,7 +90,7 @@ On n8n 2.x a change to a published workflow does not reach the running copy unti
 
 ## Tests
 
-- [`tests/weather.test.js`](tests/weather.test.js) runs the Code node source straight out of the workflow file with the clock frozen, using report lines copied from real Storm Prediction Center files: 49 checks covering settings, the customer list, address results (including a Weather Service answer that arrives as text), storm day times across midnight UTC, size and distance limits, wind damage reports, naming each customer once per storm day, warnings by zone, expired and test warnings, quiet hours, retries, the outreach handoff and its fallback, a source that stops answering, and that the file ships with no credentials. `cd tests && npm install && node weather.test.js`. CI runs it on every push.
+- [`tests/weather.test.js`](tests/weather.test.js) runs the Code node source straight out of the workflow file with the clock frozen, using report lines copied from real Storm Prediction Center files: 54 checks covering settings, the customer list, address results (including a Weather Service answer that arrives as text), storm day times across midnight UTC, size and distance limits, wind damage reports, naming each customer once per storm day, warnings by zone, expired and test warnings, quiet hours, retries, the outreach handoff and its fallback, a source that stops answering, and that the file ships with no credentials, no phone numbers or emails, and sticky notes that follow n8n's template rules. `cd tests && npm install && node weather.test.js`. CI runs it on every push.
 - [`docs/VERIFIED-RESULTS.md`](docs/VERIFIED-RESULTS.md) has the live runs in a real n8n with a real Twilio number.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) explains the design choices.
 
