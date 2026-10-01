@@ -25,12 +25,12 @@ Everything below was run in a real n8n Cloud instance (2.39.7) on September 30, 
 
 ## Local checks
 
-[`tests/weather.test.js`](../tests/weather.test.js): 49 checks against the Code node source in the workflow file, with the clock frozen and report lines copied from real Storm Prediction Center files. CI runs them on every push.
+[`tests/weather.test.js`](../tests/weather.test.js): 54 checks against the Code node source in the workflow file, with the clock frozen and report lines copied from real Storm Prediction Center files. CI runs them on every push.
 
 ## Changes between runs
 
 - After run B: warning end times include the date when they are not today ("until Tue Oct 6, 4:00 AM"), and county names in a warning are separated with semicolons. Runs C and D ran with this.
-- The workflow file here is the one runs C and D ran. Nothing in it changed after them.
+- After the runs, for n8n's template review (Oct 1): the sticky notes were redone to n8n's rules (a yellow main note of 100 to 300 words with How it works and Setup steps, section notes of 50 words or less, no overlaps), nodes were moved so each sits inside one section note, and the settings ship blank with no example phone numbers or emails. In the Code nodes the only change is the settings check: it now asks for the numbers to be filled in instead of refusing the old example numbers. The matching, texting and handoff code is the code that ran.
 
 ## Not run live
 
